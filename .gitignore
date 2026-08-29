@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Generated experiment outputs
+measurement_submission_outputs/
+Measurement_TinyML_Reproducible_Results.zip
+Measurement_TinyML_COMPLETE_RESULTS.zip
+
+# C-MAPSS dataset (obtain from NASA)
+CMAPSSData.zip
+train_FD001.txt
+train_FD002.txt
+train_FD003.txt
+train_FD004.txt
+test_FD001.txt
+test_FD002.txt
+test_FD003.txt
+test_FD004.txt
+RUL_FD001.txt
+RUL_FD002.txt
+RUL_FD003.txt
+RUL_FD004.txt
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
