@@ -1,0 +1,15 @@
+{
+  "trainable_parameters": 63836,
+  "fp32_parameter_footprint_kB": 249.359375,
+  "approx_FLOPs_batch1": 2205379,
+  "approx_MACs_batch1": 1102689.5,
+  "FLOPs_convention": "TensorFlow profiler; MACs reported as FLOPs/2",
+  "peak_single_layer_activation_fp32_kB": 23.4375,
+  "peak_single_layer_activation_layer": "separable_conv1d_2",
+  "fp32_tflite_file_kB": 256.6796875,
+  "int8_tflite_file_kB": 102.6875,
+  "python": "3.12.13",
+  "tensorflow": "2.20.0",
+  "platform": "Linux-6.12.90+-x86_64-with-glibc2.35",
+  "timing_scope": "Notebook/host runtime only; not MCU hardware measurement"
+}

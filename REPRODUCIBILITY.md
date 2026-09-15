@@ -1,50 +1,87 @@
-# Reproducibility Notes
+# Reproducibility Notes — Revised Measurement Analysis
 
-## Experimental scope
+## Scope
 
-The reproducibility workflow is designed around NASA C-MAPSS FD001–FD004 simulated run-to-failure trajectories. Engine units are split before window generation so that overlapping windows from one engine cannot occur across development and test partitions.
+This repository reproduces the revised experiments for manuscript **MEAS-D-26-17511** using NASA C-MAPSS FD001–FD004 simulated run-to-failure trajectories.
 
-## Fixed configuration
+## Audited preprocessing configuration
 
-- Random seed: 42
+- Random seed for the frozen split: 42
 - Window length: 30 samples
-- Window overlap: 80%
+- **Stride: 5 samples**
+- Effective overlap: **83.33%**
+- Label position: end of window
 - Healthy: RUL > 120
 - Degrading: 40 <= RUL <= 120
 - Critical: RUL < 40
 - Train unit fraction: 0.68
 - Validation unit fraction: 0.15
 - Test: remaining units
-- StandardScaler is fitted on training data only.
+- StandardScaler fitted on training data only
+
+The earlier documentation of 80% overlap / stride 1 was inconsistent with the executed pipeline and has been corrected.
 
 ## Input channels
 
-The executed pipeline uses Wf, Nf, Nc, T2, T24, T30, T50, P2, P30 and Ps30. The C-MAPSS W31 variable is retained as the Wf proxy used in the implementation.
+The revised pipeline reports dataset-native C-MAPSS indices:
 
-## Evaluation
+```text
+s20, s8, s9, s1, s2, s3, s4, s5, s7, s11
+```
 
-The same held-out engine-unit test set is used to evaluate the floating-point reference, pruning experiments, quantized artifact, and controlled robustness transformations. Reported classification metrics include accuracy, macro-F1, class-wise precision/recall/F1, and support. Binary anomaly ranking uses ROC-AUC and Average Precision.
+The unsupported W31→Wf proxy interpretation has been removed.
+
+## Evaluation layers
+
+The revised workflow intentionally separates several evidence classes:
+
+1. **Frozen held-out performance** on unseen engine units.
+2. **Engine-unit cluster bootstrap** uncertainty.
+3. **Ten-seed training repeatability**.
+4. **Matched continued-training versus pruning** comparisons.
+5. **FP32 TFLite conversion fidelity**.
+6. **INT8 PTQ artifact execution**.
+7. **Synthetic robustness sensitivity**.
+8. **Computational/storage accounting**.
 
 ## Pruning
 
-Pruning is global unstructured magnitude pruning of kernel tensors. Reported target sparsities are 30% and 50%. Zero-valued weights alone do not imply proportional dense-runtime latency or Flash reduction.
+Pruning is global unstructured magnitude sparsification of kernel tensors. Target sparsities are 30% and 50%.
+
+Each pruning run is compared against a matched unpruned model receiving the same additional training opportunity. The revised interpretation is performance preservation under sparsity, not a pruning-induced regularization gain.
 
 ## Quantization
 
-INT8 PTQ uses a representative validation subset for calibration. The exported TensorFlow Lite artifact is executed on the held-out test samples. The quantized model must therefore be judged by both its artifact size and its post-conversion predictive performance.
+The conversion sequence is evaluated as:
 
-## Robustness
+```text
+Keras FP32 -> TFLite FP32 -> TFLite INT8
+```
 
-Controlled transformations include additive noise, random sample dropout, temporal jitter, standardized temperature-channel offsets, and synthetic burst corruption. Standardized offsets and burst-rate coordinates are sensitivity parameters, not calibrated physical qualification levels.
+The FP32 TFLite control confirms that ordinary TFLite conversion/output mapping is numerically faithful. The full-integer INT8 path is then evaluated independently.
 
-## Runtime and energy
+Representative calibration, tensor scales/zero-points, input quantization, output dequantization, and the three-class output mapping are recorded in the reviewer-response outputs.
 
-Notebook wall-time profiling is host-runtime profiling only. It is not an STM32H7 measurement. FP32 Keras and INT8 TFLite use different software paths and should not be presented as a controlled MCU speedup comparison. Energy based on an assumed 0.33 W is an estimate, not direct electrical measurement.
+## Robustness operators
+
+All robustness experiments are synthetic sensitivity operators.
+
+- **20 dB Gaussian noise:** signal power is computed over the complete standardized window; IID Gaussian noise is added using the documented seed.
+- **5% dropout:** independent element-wise time × channel mask; dropped standardized values are set to zero.
+- **Temporal jitter:** common circular shift of the complete window by an integer sampled from -3 to +3 samples.
+- **Selected-channel offset:** standardized additive offset on channels s1–s4; the coordinate is in training-SD units, not °C.
+- **Burst corruption:** artificial transient corruption using the documented burst length, amplitude, rate coordinate, start-position sampling, and seed.
+
+These experiments do not constitute physical environmental qualification.
+
+## Computational accounting
+
+The revised analysis reports parameters, approximate FLOPs/MACs, activation footprint, and TFLite artifact sizes. It does **not** claim MCU latency, MCU RAM, measured power, or measured energy.
 
 ## QAT
 
-Quantization-aware training is attempted only when compatible with the installed TensorFlow/TFMOT environment. Unsupported QAT is recorded as such; no numerical result should be inferred or fabricated.
+Quantization-aware training is not reported as a successful result because the available TensorFlow Model Optimization / Keras configuration did not provide a reliable compatible path for this model in the executed environment.
 
 ## Recommended archival practice
 
-For a publication release, archive the exact executed notebook together with the generated results ZIP, split IDs, scaler statistics, model artifacts, and software versions. Consider creating a DOI-backed release through Zenodo after acceptance or when the manuscript is made public.
+Archive the exact notebook and generated machine-readable outputs used for the manuscript revision. A DOI-backed release (for example through Zenodo) is recommended after acceptance or public release.

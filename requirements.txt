@@ -1,6 +1,10 @@
-tensorflow<2.18
+# Core packages used by the revised notebook.
+# On Kaggle, use the TensorFlow version supplied by the runtime; do not downgrade it in-session.
 numpy
 pandas
 matplotlib
 scikit-learn
+scipy
+tensorflow
+# Optional only for QAT experiments; compatibility varies by TensorFlow/Keras version.
 tensorflow-model-optimization

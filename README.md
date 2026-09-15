@@ -1,139 +1,165 @@
-# TinyML Sensor-Health Deployment
+# Measurement-Oriented TinyML for RUL-Derived Turbofan Degradation-State Classification
 
-Reproducible TinyML pipeline for embedded sensor-health monitoring using NASA C-MAPSS FD001–FD004, with leakage-controlled unit-wise evaluation, magnitude pruning, INT8 TensorFlow Lite deployment validation, robustness testing, and uncertainty-aware reporting.
+This repository supports the revised Measurement manuscript **MEAS-D-26-17511** and the associated reproducibility workflow for NASA C-MAPSS FD001–FD004.
 
-## Scope
+> **Scope note:** the repository name `tinyml-sensor-health-deployment` is retained for continuity, but the revised study is **not** framed as direct sensor-health diagnosis. The supervised target is an **RUL-derived turbofan degradation state** (Healthy, Degrading, Critical) obtained from simulated C-MAPSS run-to-failure trajectories.
 
-This repository accompanies a measurement-oriented study of compact temporal neural networks for sensor-health monitoring. The emphasis is not only on nominal predictive accuracy, but on whether diagnostic information remains valid after deployment-oriented transformations and under controlled corruption of the measured inputs.
+## Revised scientific scope
 
-The workflow includes:
+The study evaluates a compact 1D CNN/TCN as a test vehicle for a **measurement-oriented validation protocol**, rather than claiming a new learning mechanism. The revised workflow separates:
 
-- NASA C-MAPSS FD001–FD004 training trajectories;
-- engine-unit-wise train/validation/test splitting to avoid trajectory leakage;
-- training-only standardization;
-- 30-sample temporal windows with 80% overlap;
-- three-state health classification (Healthy, Degrading, Critical);
-- binary anomaly ranking;
-- global magnitude pruning at 30% and 50% sparsity;
-- genuine INT8 post-training quantization with TensorFlow Lite inference;
-- robustness evaluation under additive noise, sample dropout, temporal jitter, standardized temperature-channel offsets, and burst corruption;
-- local-runtime profiling clearly separated from target-MCU claims;
-- saved tables, figures, predictions, models, split IDs, and scaler statistics.
+- leakage-controlled predictive evaluation on unseen engine units;
+- engine-cluster bootstrap uncertainty;
+- repeated-seed training variability;
+- controlled synthetic measurement perturbations;
+- matched continued-training controls for magnitude pruning;
+- Keras FP32 → TFLite FP32 conversion fidelity;
+- full-integer INT8 post-training quantization (PTQ);
+- computational and storage accounting;
+- explicit separation of host-side evaluation from physical MCU validation.
 
-## Important scientific notes
+## Data construction
 
-1. **C-MAPSS is simulated run-to-failure data.** The repository does not describe it as real operational aircraft data.
-2. **No synthetic multi-node result is reported.** Independent node-level measurements were not available.
-3. **Pruning is unstructured global magnitude sparsification**, not structured channel pruning.
-4. **INT8 PTQ is evaluated by executing the exported TensorFlow Lite artifact** on the held-out test set; its predictive degradation is retained rather than replaced by nominal or assumed accuracy.
-5. **Notebook timing is not STM32H7 timing.** Local Keras/TFLite wall-time measurements are software-runtime measurements only.
-6. **Energy is not directly measured.** Any retained energy quantity is an estimate based on an assumed power value and must not be interpreted as hardware power measurement.
-7. **QAT is optional and environment-dependent.** If unsupported, the notebook records the failure and does not fabricate a QAT result.
+The executed configuration used in the revised analysis is:
+
+```text
+Dataset: NASA C-MAPSS FD001–FD004
+Window length: 30 samples
+Stride: 5 samples
+Effective overlap: 83.33%
+Label position: final sample of each window
+Healthy: RUL > 120
+Degrading: 40 <= RUL <= 120
+Critical: RUL < 40
+Train unit fraction: 0.68
+Validation unit fraction: 0.15
+Test: remaining engine units
+```
+
+Complete engine trajectories are assigned to mutually exclusive train/validation/test partitions **before** window generation. The scaler is fitted on training-unit data only.
+
+### Dataset-native channels
+
+The frozen revised implementation uses the following C-MAPSS sensor indices:
+
+```text
+s20, s8, s9, s1, s2, s3, s4, s5, s7, s11
+```
+
+The earlier W31→Wf physical proxy interpretation has been removed.
 
 ## Main reproducibility notebook
 
 `Measurement_TinyML_Final_Reproducible.ipynb`
 
-The notebook is designed for Google Colab and generates all principal experiment outputs from a clean run.
+The notebook contains the corrected data construction and the reviewer-requested controls, including:
+
+- repeated independent training seeds;
+- matched continued-unpruned controls;
+- 30% and 50% global unstructured magnitude sparsification;
+- FP32 TFLite conversion control;
+- INT8 PTQ evaluation;
+- precise robustness-operator definitions;
+- FLOPs/MACs and activation-memory accounting;
+- compact baseline and architecture-ablation comparisons.
+
+## Key revised results
+
+### Frozen submitted FP32 reference
+
+- Accuracy: **73.59%**
+- Macro-F1: **75.22%**
+- ROC-AUC: **0.8758**
+- Average Precision: **0.9280**
+- Parameters: **63,836**
+
+### Ten-seed repeatability
+
+- Accuracy: **75.01% ± 1.60%**
+- Macro-F1: **76.97% ± 1.65%**
+- ROC-AUC: **0.8825 ± 0.0062**
+- AP: **0.9317 ± 0.0031**
+
+### Matched pruning controls
+
+The earlier single-run increase after 30% pruning is **not attributed to pruning** after introducing a matched continued-training control.
+
+- Continued unpruned accuracy: **75.55% ± 0.75%**
+- 30% sparsity accuracy: **75.66% ± 0.66%**
+- 50% sparsity accuracy: **75.59% ± 0.47%**
+- 30% vs continued-unpruned paired accuracy difference: **+0.11 percentage points**
+- Paired t-test: **p = 0.291**
+
+Interpretation: 30–50% unstructured magnitude sparsity preserves predictive performance under the tested matched-training protocol; no pruning-specific regularization gain is claimed.
+
+### FP32 TFLite conversion control and INT8 PTQ
+
+Controlled conversion results:
+
+| Runtime/artifact | Accuracy | Macro-F1 | ROC-AUC |
+|---|---:|---:|---:|
+| Keras FP32 | 73.19% | 74.06% | 0.8910 |
+| TFLite FP32 | 73.19% | 74.06% | 0.8910 |
+| TFLite INT8 | 48.55% | 41.99% | 0.7663 |
+
+Maximum absolute probability difference between Keras FP32 and TFLite FP32: **3.70 × 10⁻⁶**.
+
+This shows that ordinary FP32 TFLite conversion is numerically faithful, while the tested full-integer INT8 transformation does not preserve diagnostic equivalence.
+
+### Computational accounting
+
+- Approximate FLOPs per window: **2.21 MFLOPs**
+- Approximate MACs per window: **1.10 MMACs**
+- Approximate peak single-layer FP32 activation: **23.44 kB**
+- FP32 TFLite artifact: **256.68 kB**
+- INT8 TFLite artifact: **102.69 kB**
+
+No direct MCU latency, peak target-device RAM, electrical power, or energy measurement is claimed.
+
+## Robustness operators
+
+The robustness experiments are **synthetic sensitivity tests**, not physical sensor-fault qualification.
+
+- Gaussian noise: 20 dB SNR computed over the complete standardized window.
+- Dropout: 5% independent element-wise mask; dropped standardized entries are set to zero.
+- Temporal jitter: whole-window circular shift sampled from {-3, …, +3} samples.
+- Selected-channel offset: additive standardized offset applied to dataset-native channels s1–s4.
+- Burst corruption: synthetic transient corruption with explicitly defined burst length, amplitude, rate parameter, start-position sampling, and random seed.
+
+These coordinates must not be interpreted as physical °C offsets, measured EMI rates, or calibrated packet-loss/failure probabilities.
+
+## Reviewer-response outputs
+
+The folder `reviewer_response_outputs/` contains the machine-readable outputs used to support the revised manuscript and response to reviewers, including:
+
+- window-construction audit;
+- repeated-seed summaries;
+- matched pruning statistics;
+- FP32/TFLite/INT8 control results;
+- TFLite output mapping;
+- robustness-operator specification;
+- computational accounting;
+- baseline and architecture-ablation results.
 
 ## Dataset
 
-Use the official NASA C-MAPSS Turbofan Engine Degradation Simulation Data Set. The notebook expects the following training files:
+The NASA C-MAPSS data are **not redistributed** here. Obtain the original FD001–FD004 training files from the NASA Prognostics Center of Excellence data repository.
 
-```text
-train_FD001.txt
-train_FD002.txt
-train_FD003.txt
-train_FD004.txt
-```
+## Important reporting boundaries
 
-The dataset itself is **not redistributed** in this repository. Obtain it from the official NASA Prognostics Center of Excellence data repository.
-
-## Reproducibility settings
-
-Default experiment settings in the notebook include:
-
-```text
-Random seed: 42
-Window size: 30
-Window overlap: 80%
-Healthy threshold: RUL > 120
-Critical threshold: RUL < 40
-Training unit ratio: 0.68
-Validation unit ratio: 0.15
-```
-
-The remaining units form the held-out test set.
-
-The model uses the following input channels:
-
-```text
-Wf, Nf, Nc, T2, T24, T30, T50, P2, P30, Ps30
-```
-
-`W31` is used as the `Wf` proxy in the executed pipeline and is explicitly documented in the notebook.
-
-## Expected output structure
-
-A complete run creates:
-
-```text
-measurement_submission_outputs/
-├── artifacts/
-├── figures/
-├── tables/
-└── results_summary.json
-```
-
-The notebook also packages these outputs into a downloadable ZIP archive.
-
-## Principal reported results
-
-For the frozen experiment used in the associated manuscript, the FP32 reference model achieved approximately:
-
-- Accuracy: 73.59%
-- Macro-F1: 75.22%
-- Binary anomaly ROC-AUC: 0.8758
-- Average Precision: 0.9280
-
-The 30% magnitude-pruned model achieved approximately:
-
-- Accuracy: 76.25%
-- Macro-F1: 77.86%
-- ROC-AUC: 0.8870
-
-The INT8 TFLite PTQ artifact reduced storage substantially but also showed marked predictive degradation, emphasizing that model-size reduction and diagnostic equivalence must be evaluated separately.
-
-## Suggested execution order
-
-1. Open the notebook in Google Colab.
-2. Install the listed Python dependencies.
-3. Upload or mount the four C-MAPSS training files.
-4. Run all cells from top to bottom.
-5. Download the generated complete-results ZIP.
-6. Use only values generated by the clean run for manuscript tables and figures.
-
-## Software requirements
-
-A representative environment is listed in `requirements.txt`. TensorFlow/TensorFlow Model Optimization compatibility can vary, particularly for optional QAT.
-
-## Reproducibility and reporting
-
-The repository is intended to support transparent reporting of:
-
-- unit-wise data partitioning;
-- preprocessing statistics;
-- exact test predictions;
-- pruning outcomes;
-- quantized artifact performance;
-- robustness transformations;
-- uncertainty analysis;
-- distinctions between predictive metrics, storage metrics, runtime profiling, and directly measured hardware quantities.
+1. C-MAPSS is simulated run-to-failure data, not operational aircraft sensor data.
+2. The target is RUL-derived engine degradation state, not an independently labelled sensor-health condition.
+3. Pruning is global **unstructured magnitude sparsification**, not structured channel pruning.
+4. INT8 performance is measured by executing the exported TFLite artifact on the held-out test set.
+5. Host/notebook timing is not MCU timing.
+6. No direct electrical power or energy measurement is reported.
+7. QAT is not reported as a successful experimental result in the revised study.
+8. No multi-node/fleet-level inference result is claimed.
 
 ## Citation
 
-If you use this repository, please cite the associated manuscript once publication details are available.
+If you use this repository, please cite the associated Measurement manuscript once publication details are available.
 
 ## License
 
-Code is released under the MIT License. The NASA C-MAPSS dataset remains subject to its original source terms and is not redistributed here.
+Code is released under the MIT License. NASA C-MAPSS remains subject to its original source terms and is not redistributed here.
