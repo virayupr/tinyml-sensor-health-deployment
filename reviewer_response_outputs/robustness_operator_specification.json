@@ -1,0 +1,28 @@
+{
+  "Gaussian noise 20 dB SNR": {
+    "scope": "signal power computed independently for each complete window over all time samples and all selected channels",
+    "formula": "P_signal=mean(X^2); P_noise=P_signal/10^(SNR_dB/10); iid N(0,1) scaled by sqrt(P_noise)",
+    "snr_db": 20,
+    "rng_seed": 142
+  },
+  "Dropout 5%": {
+    "scope": "independent element-wise Bernoulli mask over time × channel entries",
+    "rate": 0.05,
+    "missing_representation": "standardized value set to 0 by multiplication with mask",
+    "interpretation": "synthetic missing-value sensitivity, not a physical packet-loss model"
+  },
+  "Temporal jitter": {
+    "scope": "each window is circularly shifted as a whole along the time axis",
+    "shift": "integer sampled uniformly from {-3,-2,-1,0,1,2,3}",
+    "note": "all channels in a window receive the same shift; np.roll implies wrap-around",
+    "interpretation": "synthetic timing sensitivity; not timestamp jitter in milliseconds"
+  },
+  "Selected-channel offset sweep": {
+    "scope": "selected standardized input channels s1-s4",
+    "unit": "training-standard-deviation units (sigma)",
+    "interpretation": "standardized sensitivity coordinate, not degrees Celsius"
+  },
+  "Burst corruption": {
+    "interpretation": "synthetic transient corruption; not measured EMI"
+  }
+}

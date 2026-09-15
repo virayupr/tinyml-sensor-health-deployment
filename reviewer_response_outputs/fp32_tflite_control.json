@@ -1,0 +1,10 @@
+{
+  "accuracy": 0.7319194061505833,
+  "macro_f1": 0.7406309222996438,
+  "roc_auc": 0.8910254866937386,
+  "average_precision": 0.9377812170069356,
+  "max_abs_probability_difference_vs_keras": 3.6954879760742188e-06,
+  "mean_abs_probability_difference_vs_keras": 2.1088675339342444e-07,
+  "file_size_kb": 256.6796875,
+  "health_output_index": 1
+}

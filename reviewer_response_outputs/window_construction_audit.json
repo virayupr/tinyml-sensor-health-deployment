@@ -1,0 +1,13 @@
+{
+  "window_size": 30,
+  "stride": 5,
+  "effective_overlap_fraction": 0.8333333333333334,
+  "effective_overlap_percent": 83.33333333333334,
+  "label_position": "end of window (end-1)",
+  "healthy_rule": "RUL > 120",
+  "degrading_rule": "40 <= RUL <= 120",
+  "critical_rule": "RUL < 40",
+  "critical_windows_train": 3856,
+  "critical_windows_validation": 848,
+  "critical_windows_test": 968
+}
